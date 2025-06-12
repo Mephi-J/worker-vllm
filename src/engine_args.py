@@ -140,7 +140,7 @@ def get_engine_args():
     args.update(os.environ)
     
     # Get local args if model is baked in and overwrite env args
-    args.update(get_local_args())
+    # args.update(get_local_args())
     
     # if args.get("TENSORIZER_URI"): TODO: add back once tensorizer is ready
     #     args["load_format"] = "tensorizer"
