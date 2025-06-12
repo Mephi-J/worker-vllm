@@ -15,7 +15,6 @@ except ImportError:
 
 logging.basicConfig(level=logging.INFO)
 
-# Updated to parse multiple comma-separated multimodal limits (e.g., 'image=1,video=0')
 def convert_limit_mm_per_prompt(input_string: str):
     result = {}
     pairs = input_string.split(',')
@@ -49,15 +48,19 @@ class JobInput:
         self.max_batch_size = job.get("max_batch_size")
         self.apply_chat_template = job.get("apply_chat_template", False)
         self.use_openai_format = job.get("use_openai_format", False)
-        samp_param = job.get("sampling_params", {})
 
+        samp_param = job.get("sampling_params", {}).copy()
+
+        # ✅ max_new_tokens → max_tokens に変換（vLLM 0.9.0 では max_tokens が必要）
         if "max_new_tokens" in samp_param:
             samp_param["max_tokens"] = samp_param.pop("max_new_tokens")
+
+        # ✅ 最低限必要なパラメータ
         if "max_tokens" not in samp_param:
             samp_param["max_tokens"] = 100
-        
+
         self.sampling_params = SamplingParams(**samp_param)
-        # self.sampling_params = SamplingParams(max_tokens=100, **job.get("sampling_params", {}))
+
         self.request_id = random_uuid()
         batch_size_growth_factor = job.get("batch_size_growth_factor")
         self.batch_size_growth_factor = float(batch_size_growth_factor) if batch_size_growth_factor else None 
@@ -65,6 +68,7 @@ class JobInput:
         self.min_batch_size = int(min_batch_size) if min_batch_size else None 
         self.openai_route = job.get("openai_route")
         self.openai_input = job.get("openai_input")
+
 class DummyState:
     def __init__(self):
         self.request_metadata = None
@@ -89,12 +93,12 @@ class BatchSize:
         
     def update(self):
         if self.is_dynamic:
-            self.current_batch_size = min(self.current_batch_size*self.batch_size_growth_factor, self.max_batch_size)
+            self.current_batch_size = min(self.current_batch_size * self.batch_size_growth_factor, self.max_batch_size)
         
 def create_error_response(message: str, err_type: str = "BadRequestError", status_code: HTTPStatus = HTTPStatus.BAD_REQUEST) -> ErrorResponse:
     return ErrorResponse(message=message,
-                            type=err_type,
-                            code=status_code.value)
+                         type=err_type,
+                         code=status_code.value)
     
 def get_int_bool_env(env_var: str, default: bool) -> bool:
     return int(os.getenv(env_var, int(default))) == 1
