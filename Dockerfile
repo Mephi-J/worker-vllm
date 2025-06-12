@@ -26,7 +26,7 @@ RUN python3 -m pip install \
 
 # CUDA依存のあるパッケージを順にインストール
 RUN python3 -m pip install torch --index-url https://download.pytorch.org/whl/cu121
-RUN python3 -m pip install transformers==4.39.3
+RUN python3 -m pip install transformers==4.52.3
 RUN python3 -m pip install bitsandbytes>=0.45.0
 RUN python3 -m pip install autoawq
 
