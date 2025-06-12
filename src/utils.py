@@ -51,7 +51,7 @@ class JobInput:
         self.use_openai_format = job.get("use_openai_format", False)
         samp_param = job.get("sampling_params", {})
 
-        if "max_tokens" in samp_param:
+        if "max_new_tokens" in samp_param:
             samp_param["max_tokens"] = samp_param.pop("max_new_tokens")
         if "max_tokens" not in samp_param:
             samp_param["max_tokens"] = 100
