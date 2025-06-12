@@ -1,30 +1,28 @@
-FROM nvidia/cuda:12.1.0-base-ubuntu22.04
+FROM nvidia/cuda:12.1.0-base-ubuntu22.04 
 
-# 環境のアップデートと基本ツールのインストール
+# 必要パッケージをインストール
 RUN apt-get update -y \
     && apt-get install -y python3-pip
 
-# CUDA互換ライブラリのリンク設定
+# CUDA の互換ライブラリを登録
 RUN ldconfig /usr/local/cuda-12.1/compat/
 
-# Python依存パッケージのインストール
+# Python依存パッケージをインストール
 COPY builder/requirements.txt /requirements.txt
-RUN --mount=type=cache,target=/root/.cache/pip \
-    python3 -m pip install --upgrade pip && \
-    python3 -m pip install --upgrade -r /requirements.txt
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install --break-system-packages --upgrade -r /requirements.txt
 
-# vLLM と FlashInfer のインストール
-RUN python3 -m pip install vllm==0.9.0.1
-#    python3 -m pip install flashinfer -i https://flashinfer.ai/whl/cu121/torch2.3
+# vLLM と FlashInfer をインストール
+RUN python3 -m pip install --break-system-packages vllm==0.9.0.1 && \
+    python3 -m pip install --break-system-packages flashinfer -i https://flashinfer.ai/whl/cu121/torch2.3
 
-# モデル情報・キャッシュ関連の設定
+# モデル読み込み関連の ARG と ENV 設定
 ARG MODEL_NAME=""
 ARG TOKENIZER_NAME=""
 ARG BASE_PATH="/runpod-volume"
 ARG QUANTIZATION=""
 ARG MODEL_REVISION=""
 ARG TOKENIZER_REVISION=""
-ARG HF_TOKEN=""
 
 ENV MODEL_NAME=$MODEL_NAME \
     MODEL_REVISION=$MODEL_REVISION \
@@ -36,15 +34,19 @@ ENV MODEL_NAME=$MODEL_NAME \
     HUGGINGFACE_HUB_CACHE="${BASE_PATH}/huggingface-cache/hub" \
     HF_HOME="${BASE_PATH}/huggingface-cache/hub" \
     HF_HUB_ENABLE_HF_TRANSFER=0 \
-    HF_TOKEN=${HF_TOKEN}
+    PYTHONPATH="/:/vllm-workspace"
 
-ENV PYTHONPATH="/:/vllm-workspace"
-
-# モデルダウンロードスクリプトの配置と実行
+# モデルダウンロード用スクリプトと src をコピー
 COPY src /src
-RUN if [ -n "$MODEL_NAME" ]; then \
-        python3 /src/download_model.py; \
+
+# HuggingFace トークンが存在すればモデルをダウンロード
+RUN --mount=type=secret,id=HF_TOKEN,required=false \
+    if [ -f /run/secrets/HF_TOKEN ]; then \
+    export HF_TOKEN=$(cat /run/secrets/HF_TOKEN); \
+    fi && \
+    if [ -n "$MODEL_NAME" ]; then \
+    python3 /src/download_model.py; \
     fi
 
-# ハンドラーを実行
+# サーバレス実行時の起動コマンド
 CMD ["python3", "/src/handler.py"]
