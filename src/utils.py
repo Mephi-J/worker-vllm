@@ -52,9 +52,10 @@ class JobInput:
         samp_param = job.get("sampling_params", {})
 
         if "max_tokens" in samp_param:
-            samp_param["max_new_tokens"] = samp_param.pop("max_tokens")
-        if "max_new_tokens" not in samp_param:
-            samp_param["max_new_tokens"] = 100
+            samp_param["max_tokens"] = samp_param.pop("max_new_tokens")
+        if "max_tokens" not in samp_param:
+            samp_param["max_tokens"] = 100
+        
         self.sampling_params = SamplingParams(**samp_param)
         # self.sampling_params = SamplingParams(max_tokens=100, **job.get("sampling_params", {}))
         self.request_id = random_uuid()
