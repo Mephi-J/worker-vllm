@@ -1,3 +1,13 @@
+torch==2.3.0+cu121
+--extra-index-url https://download.pytorch.org/whl/cu121
+
+transformers>=4.40.0
+accelerate
+hf_transfer
+modelscope
+tensorizer
+optimum>=1.12.0
+
 ray
 pandas
 pyarrow
@@ -7,9 +17,5 @@ packaging
 typing-extensions>=4.8.0
 pydantic
 pydantic-settings
-hf-transfer
 bitsandbytes>=0.45.0
-transformers==4.39.3
-optimum>=1.12.0
 autoawq
-torch
