@@ -1,3 +1,7 @@
+import logging
+logging.basicConfig(level=logging.INFO)
+logging.info(">>> handler.py started <<<")
+
 import os
 import runpod
 from utils import JobInput
