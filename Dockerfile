@@ -14,8 +14,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     python3 -m pip install --upgrade -r /requirements.txt
 
 # vLLM と FlashInfer のインストール
-RUN python3 -m pip install vllm==0.9.0.1 && \
-    python3 -m pip install flashinfer -i https://flashinfer.ai/whl/cu121/torch2.3
+RUN python3 -m pip install vllm==0.9.0.1
+#    python3 -m pip install flashinfer -i https://flashinfer.ai/whl/cu121/torch2.3
 
 # モデル情報・キャッシュ関連の設定
 ARG MODEL_NAME=""
