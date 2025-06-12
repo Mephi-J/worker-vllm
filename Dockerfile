@@ -1,23 +1,26 @@
 FROM nvidia/cuda:12.1.0-base-ubuntu22.04 
 
-# 基本パッケージのインストール
+# 基本ツールと Python パッケージマネージャーのインストール
 RUN apt-get update -y \
-    && apt-get install -y python3-pip git
+    && apt-get install -y python3-pip
 
-# CUDA ライブラリのリンク解決
+# CUDA の互換性確保
 RUN ldconfig /usr/local/cuda-12.1/compat/
 
-# Python ライブラリのインストール
+# Python モジュールのキャッシュを利用して依存関係をインストール（flashinfer は除外）
 COPY builder/requirements.txt /requirements.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
     python3 -m pip install --upgrade pip && \
-    python3 -m pip install --upgrade -r /requirements.txt
+    grep -v '^flashinfer' /requirements.txt > /requirements-filtered.txt && \
+    python3 -m pip install --upgrade -r /requirements-filtered.txt
 
-# vLLM と FlashInfer のインストール
-RUN python3 -m pip install vllm==0.9.0.1 && \
-    python3 -m pip install flashinfer --find-links https://flashinfer.ai/whl/cu121/torch2.3
+# vLLM を依存なしでインストール（flashinfer が自動で引かれないように）
+RUN python3 -m pip install vllm==0.9.0.1 --no-deps
 
-# モデル情報のビルド引数
+# flashinfer を正規のホイール配布サイトからインストール
+RUN python3 -m pip install flashinfer -i https://flashinfer.ai/whl/cu121/torch2.3
+
+# モデル関連の環境変数設定
 ARG MODEL_NAME=""
 ARG TOKENIZER_NAME=""
 ARG BASE_PATH="/runpod-volume"
@@ -25,7 +28,6 @@ ARG QUANTIZATION=""
 ARG MODEL_REVISION=""
 ARG TOKENIZER_REVISION=""
 
-# 環境変数の設定
 ENV MODEL_NAME=$MODEL_NAME \
     MODEL_REVISION=$MODEL_REVISION \
     TOKENIZER_NAME=$TOKENIZER_NAME \
@@ -35,18 +37,20 @@ ENV MODEL_NAME=$MODEL_NAME \
     HF_DATASETS_CACHE="${BASE_PATH}/huggingface-cache/datasets" \
     HUGGINGFACE_HUB_CACHE="${BASE_PATH}/huggingface-cache/hub" \
     HF_HOME="${BASE_PATH}/huggingface-cache/hub" \
-    HF_HUB_ENABLE_HF_TRANSFER=0 \
-    PYTHONPATH="/:/vllm-workspace"
+    HF_HUB_ENABLE_HF_TRANSFER=0 
 
-# モデル取得スクリプトのコピーと実行（任意）
+# Pythonパスの設定
+ENV PYTHONPATH="/:/vllm-workspace"
+
+# ソースコードのコピーとモデルのダウンロード（オプション）
 COPY src /src
 RUN --mount=type=secret,id=HF_TOKEN,required=false \
     if [ -f /run/secrets/HF_TOKEN ]; then \
-    export HF_TOKEN=$(cat /run/secrets/HF_TOKEN); \
+        export HF_TOKEN=$(cat /run/secrets/HF_TOKEN); \
     fi && \
     if [ -n "$MODEL_NAME" ]; then \
-    python3 /src/download_model.py; \
+        python3 /src/download_model.py; \
     fi
 
-# ハンドラー起動
+# サーバレス起動エントリポイント
 CMD ["python3", "/src/handler.py"]
